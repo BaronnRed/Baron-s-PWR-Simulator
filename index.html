@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HBM:NTM PWR Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="mc-gui">
+        <div class="mc-header">
+            <span class="mc-title">HBM Nuclear Tech: PWR Planner</span>
+            <span id="header-error-msg"></span>
+        </div>
+
+        <div class="workspace">
+
+            <div class="sidebar">
+
+                <div class="stats-panel">
+                    <div class="stat-row">
+                        <label for="inp-size">Size (WxD):</label>
+                        <input type="number" id="inp-size" value="7" min="3" max="17">
+                    </div>
+                    <button class="mc-btn btn-full mt-5" id="btn-reset" onclick="UI.resetGrid()"><span>New Reactor</span></button>
+                    <div class="flex-gap-5 mt-5">
+                        <button class="mc-btn flex-1 btn-half" id="btn-export" onclick="IO.exportReactor()"><span>Export Reactor</span></button>
+                        <button class="mc-btn flex-1 btn-half" id="btn-import" onclick="IO.openImportModal()"><span>Import Reactor</span></button>
+                    </div>
+                </div>
+
+                <div class="stats-panel">
+                    <div class="mb-5">Blocks</div>
+                    <div class="slot-grid" id="palette-grid"></div>
+                </div>
+
+                <div class="stats-panel">
+                    <div class="mb-5">Fuel Configuration</div>
+                    <div class="stat-row flex-align-center mb-5">
+                        <img id="fuel-icon-display" class="icon-display-fuel" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Fuel Icon">
+                        <select id="sel-fuel-type" class="flex-1" onchange="UI.onFuelSelect()"></select>
+                    </div>
+
+                    <div id="fuel-stats-panel" class="info-text mb-10">
+                        Heat/Flux: <span id="stat-heat">0</span> <br> Curve: <span id="stat-curve"></span>
+                    </div>
+
+                    <div class="stat-row mb-5 font-normal">
+                        <span>Fuel Rods:</span><span id="txt-rods">0</span>
+                    </div>
+
+                    <div class="stat-row">
+                        <label for="inp-fuel-amount">Fuel Amount:</label>
+                        <input type="number" id="inp-fuel-amount" min="0" value="0" oninput="UI.validateFuelInput()">
+                    </div>
+
+                    <div class="flex-between-center mt-5">
+                        <span class="text-tiny">Density: <span id="val-density">0.00</span>/rod</span>
+                        <button class="mc-btn btn-tiny" onclick="UI.setMaxFuel()"><span>MAX</span></button>
+                    </div>
+                </div>
+
+                <div class="stats-panel">
+                    <div class="mb-5">Coolant System</div>
+
+                    <div class="stat-row mb-5 flex-align-center">
+                        <img id="coolant-icon-display" class="icon-display-fluid" src="">
+                        <select id="sel-coolant-type" class="flex-1" onchange="UI.onCoolantSelect()"></select>
+                    </div>
+                    <div id="coolant-stats-panel" class="info-grid mb-10">
+                        <span>Heat Cap: <span id="stat-cool-cap">0</span></span>
+                        <span>Flux Mult: <span id="stat-cool-flux">0</span></span>
+                        <span>Heat Eff: <span id="stat-cool-heat">0</span></span>
+                        <span>Cool Eff: <span id="stat-cool-cool">0</span></span>
+                    </div>
+                    
+                    <div class="tank-group">
+                        <div class="tank-wrapper">
+                            <div class="tank-label">Input</div>
+                            <div class="fluid-tank">
+                                <div id="tank-fill-cold" class="tank-fill cold-fill"></div>
+                                <div id="tank-text-cold" class="tank-text">0 mB</div>
+                            </div>
+                        </div>
+
+                        <div class="tank-wrapper">
+                            <div class="tank-label">Output</div>
+                            <div class="fluid-tank">
+                                <div id="tank-fill-hot" class="tank-fill hot-fill"></div>
+                                <div id="tank-text-hot" class="tank-text">0 mB</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-panel">
+                    <div>Fluid I/O Control</div>
+
+
+                    <div class="mt-5 stat-row">
+                        <label for="inp-io-in">Input (mB/t):</label>
+                        <input type="number" id="inp-io-in" value="0" min="0" oninput="UI.onFluidIOChange()">
+                    </div>
+                    <div class="mt-5 stat-row">
+                        <label for="inp-io-out">Output (mB/t):</label>
+                        <input type="number" id="inp-io-out" value="0" min="0" oninput="UI.onFluidIOChange()">
+                    </div>
+
+                    <div class="mt-10 mb-5 text-small">
+                        <label>
+                            <input type="checkbox" id="chk-io-auto" class="font-small vertical-m"
+                                onchange="UI.onFluidIOChange()">
+                            Auto-Calculate
+                        </label>
+                        <label>
+                            <input type="checkbox" id="chk-io-match" class="font-small vertical-m"
+                                onchange="UI.onFluidIOChange()">
+                            Output = Input
+                        </label>
+                    </div>
+
+                    <div class="mt-5 text-tiny">
+                        Usage: <span id="val-io-usage">0</span> mB/t <br>
+                    </div>
+                </div>
+
+                <div class="stats-panel">
+                    <button class="mc-btn btn-full mb-5" id="btn-toggle" onclick="Simulation.toggle()">START</button>
+                    <div class="stat-row mt-10">
+                        <label for="tick-per-second">TPS:</label>
+                        <input type="number" id="tick-per-second" value="20" min="0">
+                    </div>
+                </div>
+
+                <div class="stats-panel">
+                    <div>Core Heat</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-heat-core"></div>
+                    </div>
+                    <div id="txt-heat-core" class="text-right text-small">0 / 10.0M</div>
+                    <div>Hull Heat</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-heat-hull"></div>
+                    </div>
+                    <div id="txt-heat-hull" class="text-right text-small">0 / 10.0M</div>
+
+
+                    <div class="text-small">Flux: <span id="txt-flux">0</span></div>
+                    <div class="text-small">Efficiency: <span id="val-struct-mult">0</span></div>
+
+                    <div class="mt-10">Control Rods Target</div>
+                    <div class="flex-gap-5 flex-align-center">
+                        <input type="range" id="inp-control-slider" class="flex-1" min="0" max="100" value="100">
+                        <input type="number" id="inp-control-num" min="0" max="100" value="100">
+                    </div>
+                    <div class="mt-10">Control Rods Insertion</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill " id="bar-rod-level"></div>
+                    </div>
+                    <div class="text-small text-right" id="txt-rod-level">100%</div>
+
+                    <div class="text-center text-tiny opacity-80">(0% = Fully Inserted)</div>
+                </div>
+
+            </div>
+
+            <div class="viewport" id="viewport">
+                <div class="mc-btn btn-add-layer" id="btn-add-layer" onclick="Reactor.addLayer()"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <dialog id="import-modal" class="mc-dialog">
+        <div class="dialog-header">Import Reactor Design</div>
+        <span id="import-error"></span>               
+        <div class="dialog-body">
+            <div class="dialog-body"> <form onsubmit="IO.confirmImport(); return false;">
+                <div class="text-small mb-5">Enter code below:</div>
+                <input type="text" id="inp-import-code" class="mc-input-text" placeholder="Paste code here..." autocomplete="off">
+                <div class="flex-gap-5 mt-10" style="justify-content: flex-end;">
+                <button type="button" class="mc-btn btn-half" onclick="IO.closeImportModal()">Cancel</button>
+                <button type="submit" class="mc-btn btn-half">IMPORT</button>
+            </div>
+        </div>
+    </dialog>
+
+
+    <div class="tooltip" id="tooltip"></div>
+    <script src="sim.js" defer></script>
+
+</body>
+
+</html>
