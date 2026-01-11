@@ -109,9 +109,9 @@
                         <input type="number" id="inp-io-out" value="0" min="0" oninput="UI.onFluidIOChange()">
                     </div>
 
-                    <div class="mt-10 mb-5 text-small">
+                    <div class="mt-10 mb-5 text-small" onmousedown="event.preventDefault()">
                         <label>
-                            <input type="checkbox" id="chk-io-auto" class="font-small vertical-m"
+                            <input type="checkbox"  id="chk-io-auto" class="font-small vertical-m"
                                 onchange="UI.onFluidIOChange()">
                             Auto-Calculate
                         </label>
@@ -140,16 +140,29 @@
                     <div class="progress-bar">
                         <div class="progress-fill" id="bar-heat-core"></div>
                     </div>
-                    <div id="txt-heat-core" class="text-right text-small">0 / 10.0M</div>
+                    <div id="txt-heat-core" class="text-right text-small">0 / 10.0 MTU</div>
                     <div>Hull Heat</div>
                     <div class="progress-bar">
                         <div class="progress-fill" id="bar-heat-hull"></div>
                     </div>
-                    <div id="txt-heat-hull" class="text-right text-small">0 / 10.0M</div>
+                    <div id="txt-heat-hull" class="text-right text-small">0 / 10.0 MTU</div>
 
 
                     <div class="text-small">Flux: <span id="txt-flux">0</span></div>
-                    <div class="text-small">Efficiency: <span id="val-struct-mult">0</span></div>
+
+                    <div class="text-small">
+                        <span onmouseenter="UI.showTooltip(event, 'At 100% efficiency')" 
+                        onmouseleave="UI.hideTooltip()">Energy:</span>
+                        <span onclick="cycleEnergyUnit()" onmousedown="event.preventDefault()" style="cursor: pointer; text-decoration: underline;"><span id="txt-energy-produced">0</span><span>HE</span><span id="energy-unit">/s</span></span>
+                    </div>
+
+                    <div class="text-small">
+                        <span onmouseenter="UI.showTooltip(event, 'Amount of time one rod of fuel will last under current conditions.')" 
+                        onmouseleave="UI.hideTooltip()"
+                        >Fuel Life:</span>                   
+                        <span id="txt-fuel-life">0</span> 
+                        <span id="lbl-fuel-unit" onclick="cycleFuelUnit()" onmousedown="event.preventDefault()" style="cursor: pointer; text-decoration: underline;">seconds</span>
+                    </div>
 
                     <div class="mt-10">Control Rods Target</div>
                     <div class="flex-gap-5 flex-align-center">

@@ -53,7 +53,7 @@ const Registry = {
         2: { name: "Mug Root Beer",   heatCap: 400,  heatEff: 1.0, coolEff: 1.0, fluxMult: 1.15,    color: "rgba(100, 50, 20, 0.6)",    texture: "https://raw.githubusercontent.com/HbmMods/Hbm-s-Nuclear-Tech-GIT/master/src/main/resources/assets/hbm/textures/gui/fluids/mug.png" },
         3: { name: "Heavy Water",     heatCap: 300,  heatEff: 1.0, coolEff: 1.0, fluxMult: 1.25,    color: "rgba(44, 85, 105, 0.6)",    texture: "https://raw.githubusercontent.com/HbmMods/Hbm-s-Nuclear-Tech-GIT/master/src/main/resources/assets/hbm/textures/gui/fluids/heavywater.png" },
         4: { name: "Liquid Sodium",   heatCap: 400,  heatEff: 1.0, coolEff: 2.5, fluxMult: 1.0,     color: "rgba(204, 213, 213, 0.6)",  texture: "https://raw.githubusercontent.com/HbmMods/Hbm-s-Nuclear-Tech-GIT/master/src/main/resources/assets/hbm/textures/gui/fluids/sodium.png" },
-        5: { name: "Liquid Lead",     heatCap: 800,  heatEff: 0.85,coolEff: 0.75, fluxMult: 0.75,   color: "rgba(62, 62, 74, 0.6)",  texture: "https://raw.githubusercontent.com/HbmMods/Hbm-s-Nuclear-Tech-GIT/master/src/main/resources/assets/hbm/textures/gui/fluids/lead.png" },
+        5: { name: "Liquid Lead",     heatCap: 800,  heatEff: 0.85,coolEff: 0.75,fluxMult: 0.75,   color: "rgba(62, 62, 74, 0.6)",  texture: "https://raw.githubusercontent.com/HbmMods/Hbm-s-Nuclear-Tech-GIT/master/src/main/resources/assets/hbm/textures/gui/fluids/lead.png" },
         6: { name: "Thorium Salt",    heatCap: 400,  heatEff: 1.0, coolEff: 1.0, fluxMult: 2.5,     color: "rgba(106, 69, 49, 0.6)",  texture: "https://raw.githubusercontent.com/HbmMods/Hbm-s-Nuclear-Tech-GIT/master/src/main/resources/assets/hbm/textures/gui/fluids/thorium_salt.png" }
 
     }
@@ -62,11 +62,11 @@ const Registry = {
 const Reactor = {
     size: 7,
     layers: [], 
-    TANK_CAPACITY: 128000,
+    TANK_CAPACITY: 128_000,
 
     // Simulation State
     stats: {
-        maxHeat: 10000000,
+        maxHeat: 10_000_000,
         flux: 0,                // Current Flux (Result of previous tick)
         baseFlux: 0,            // From Neutron Sources (Constant)
         fluxPerRod: 0,
@@ -80,7 +80,11 @@ const Reactor = {
         hullHeat: 0,
         selectedCoolant: 0,
         coolantAmount: 0,
-        hotCoolantAmount: 0,        
+        hotCoolantAmount: 0,
+        fuelYield: 1_000_000_000,
+        fuelLife: 0,
+        heatGenerated: 0,
+        usableHeat: 0,      
 
         // Structural Analysis Data (Calculated once per build change)
         struct: {
@@ -416,7 +420,7 @@ const Simulation = {
         Struct.rawConnections = connectionsDouble / 2;
         Struct.controlledConnections = connectionsControlledDouble / 2;
         Struct.effectiveHeatsinkCount = Math.min(Struct.heatsinkCount, 80);
-        Reactor.stats.maxHeat = 10000000 + (Struct.effectiveHeatsinkCount * 500000);
+        Reactor.stats.maxHeat = 10_000_000 + (Struct.effectiveHeatsinkCount * 500_000);
         Reactor.stats.baseFlux = Struct.sourceCount * 20;
         
         UI.updateStats();
@@ -457,11 +461,6 @@ tick() {
     let totalConnections = Struct.rawConnections + (Struct.controlledConnections * rodFactor); 
     let structureMult = this.connectionFunc(totalConnections); //getTotalProcessMultiplier(), or usedRods
 
-    let modMult = 1.0;
-    if(S.selectedCoolant && S.coolantAmount > 0) {
-        modMult = S.selectedCoolant.fluxMult || 1.0;
-    }
-
     let newFlux = S.baseFlux;
     const fuel = S.selectedFuel;
     if(!fuel) { this.triggerError("No fuel selected"); return false; };
@@ -484,6 +483,9 @@ tick() {
         S.coreHeat = Math.trunc(S.coreHeat + totalHeatOutput);
         newFlux = Math.trunc(newFlux + totalOutput);
         // --- 3. FUEL DEPLETION (Future Implementation) ---
+        fuelLife = S.fuelYield/totalOutput/20;// in seconds
+
+        
         }
 
     // --- 4. CORE <-> HULL THERMAL TRANSFER ---
@@ -504,14 +506,11 @@ tick() {
         let coolingEff = (Struct.channelCount / rodCountForCoolant) * 0.1;
         if(coolingEff > 1.0) coolingEff = 1.0;
 
-        // Strict integer emulation for heat calculation
         let efficientHeat = S.hullHeat * coolingEff * (trait.heatEff || 1.0);
         let heatToUse = Math.min(S.hullHeat, efficientHeat);
         
-        // Java Cap: 2,000,000,000 (Integer Max roughly)
-        if (heatToUse > 2000000000) heatToUse = 2000000000; 
+        if (heatToUse > 2_000_000_000) heatToUse = 2_000_000_000; 
         
-        // Use Math.floor to simulate integer truncation during division
         let heatPerMB = trait.heatCap || 300; 
 
         let heatCycles = Math.floor(heatToUse / heatPerMB); // how much coolant would it take to absorb this heat
@@ -538,16 +537,25 @@ tick() {
         if(S.coolantAmount > Reactor.TANK_CAPACITY) S.coolantAmount = Reactor.TANK_CAPACITY;
         if(S.hotCoolantAmount > Reactor.TANK_CAPACITY) S.hotCoolantAmount = Reactor.TANK_CAPACITY;
 
+        // Heat Calculation
+        S.heatGenerated = heatPerMB * F.usage * trait.heatEff;
+        S.usableHeat = S.heatGenerated * 0.991; // 0.991 comes from decay (0.999) and heat transfer (T*0.1 TU/t) 
+
+        // Flux Mult
+        if(S.coolantAmount > 0) {
+        let modMult = S.selectedCoolant.fluxMult || 1.0;
+        S.flux = newFlux * modMult;
+        } else { S.flux = newFlux;}
 
     }
 
     // Passive Decay (Java: 0.999D)
     S.coreHeat = Math.trunc(S.coreHeat * 0.999);
     S.hullHeat = Math.trunc(S.hullHeat * 0.999);
+   
+    S.fuelLife = S.fuelYield / S.flux / 20; // in seconds 
 
-    S.flux = newFlux;
-
-    // --- 7. SAFETY ---
+    // --- 7. MELTDOWN ---
     if (S.coreHeat >= S.maxHeat) { // If hull exceeds max heat, core must also exceed it, therefore we only check core
         S.coreHeat = 0;
         S.hullHeat = 0;
@@ -876,11 +884,15 @@ const IO = {
 
 const UI = {
     selectedBlock: 1, // Default Casing
+    energyMode: 0, // 0 = Seconds (/s), 1 = Ticks (/t)
+    fuelMode: 0, // (0=Seconds, 1=Minutes, 2=Ticks)
     isDrawing: false,
 
     init() {
         this.generatePalette();
         this.resetGrid();
+        window.cycleFuelUnit = () => this.cycleFuelUnit();
+        window.cycleEnergyUnit = () => this.cycleEnergyUnit();
         try { this.populateFuelSelector(); } catch(e) { console.error(e); }
         try { this.populateCoolantSelector(); } catch(e) { console.error(e); }
 
@@ -940,6 +952,26 @@ const UI = {
         Simulation.analyzeStructure();
         UI.updateFuelMaxLimit(Reactor.stats.struct.rodCount);
         UI.updateStats();
+    },
+
+    cycleFuelUnit() {
+        this.fuelMode = (this.fuelMode + 1) % 3;
+        const labels = ["seconds", "minutes", "ticks"];
+        
+        const labelEl = document.getElementById("lbl-fuel-unit");
+        if(labelEl) labelEl.innerText = labels[this.fuelMode];
+        
+        this.updateStats(); 
+    },
+
+    cycleEnergyUnit() {
+        this.energyMode = (this.energyMode + 1) % 2;
+        const labels = ["/s", "/t"];
+        
+        const labelEl = document.getElementById("energy-unit");
+        if(labelEl) labelEl.innerText = labels[this.energyMode];
+        
+        this.updateStats(); 
     },
 
     generatePalette() {
@@ -1062,7 +1094,12 @@ const UI = {
         
         // Update Simulation State
         Reactor.stats.selectedFuel = fuel;
-    },
+        if( fuel.name === "BFB_AM_MIX" && fuel.name === "BFB_PU241") {
+            Reactor.stats.fuelYield = 250_000_000;
+        } else {
+            Reactor.stats.fuelYield = 1000_000_000;
+        }
+    },    
 
     populateCoolantSelector() {
     const sel = document.getElementById('sel-coolant-type');
@@ -1361,6 +1398,22 @@ updateToggleBtn(isRunning) {
         UI.updateFuelMaxLimit(Reactor.stats.struct.rodCount);
 },
 
+    formatEnergy(num) {
+        if (num >= 1_000_000_000_000) {
+            return (num / 1_000_000_000_000).toFixed(2) + " T";
+        }
+        if (num >= 1_000_000_000) {
+            return (num / 1_000_000_000).toFixed(2) + " G";
+        }
+        if (num >= 1_000_000) {
+            return (num / 1_000_000).toFixed(2) + " M";
+        }
+        if (num >= 1_000) {
+            return (num / 1_000).toFixed(2) + " k";
+        }
+        return Math.floor(num).toLocaleString();
+    },
+
     updateStats() {
         const S = Reactor.stats;
         
@@ -1394,12 +1447,27 @@ updateToggleBtn(isRunning) {
         updateHeatVisuals('bar-heat-core', S.coreHeat, S.maxHeat);
         updateHeatVisuals('bar-heat-hull', S.hullHeat, S.maxHeat);
 
-        safeText('txt-heat-core', `${Math.floor(S.coreHeat).toLocaleString()} / ${(S.maxHeat/1000000).toFixed(1)}M`);
-        safeText('txt-heat-hull', `${Math.floor(S.hullHeat).toLocaleString()} / ${(S.maxHeat/1000000).toFixed(1)}M`);
+        safeText('txt-heat-core', `${Math.floor(S.coreHeat).toLocaleString()} TU / ${(S.maxHeat/1_000_000).toFixed(1)} MTU`);
+        safeText('txt-heat-hull', `${Math.floor(S.hullHeat).toLocaleString()} TU / ${(S.maxHeat/1_000_000).toFixed(1)} MTU`);
         safeText('txt-rods', S.struct.rodCount);
         safeText('txt-flux', Math.floor(S.flux).toLocaleString());
 
-        const cap = Reactor.TANK_CAPACITY || 128000;
+        let displayLife = S.fuelLife;
+        if (this.fuelMode === 1) {
+            displayLife = S.fuelLife / 60;
+        } else if (this.fuelMode === 2) {
+            displayLife = S.fuelLife * 20;
+        }
+        safeText('txt-fuel-life', `${Math.floor(displayLife)}`);
+
+        let displayEnergy = S.usableHeat
+        if (this.energyMode === 0) {
+            displayEnergy = S.usableHeat * 20;
+        }
+        safeText('txt-energy-produced', this.formatEnergy(displayEnergy))
+
+
+        const cap = Reactor.TANK_CAPACITY || 128_000;
         // Cold Tank
         const coldPct = (S.coolantAmount / cap) * 100;
         safeUpdate('tank-fill-cold', 'height', `${coldPct}%`);
