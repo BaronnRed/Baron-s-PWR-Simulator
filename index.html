@@ -4,23 +4,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HBM:NTM PWR Simulator</title>
+    
+    <title>HBM:NTM Reactor Planner - PWR Simulator for Minecraft</title>
+    
+    <meta name="description" content="The ultimate reactor planner for HBM's Nuclear Tech Mod (NTM). Simulate Pressurized Water Reactors (PWR) and optimize your Minecraft nuclear setups online.">
+    
+    <meta property="og:title" content="HBM:NTM PWR Simulator">
+    <meta property="og:description" content="Design and optimize your HBM's Nuclear Tech reactors directly in your browser.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://baronnred.github.io/Baron-s-PWR-Simulator/"> <link rel="canonical" href="https://baronnred.github.io/Baron-s-PWR-Simulator/" /> <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "HBM:NTM PWR Simulator",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "A simulation tool for planning Pressurized Water Reactors in HBM's Nuclear Tech Mod for Minecraft."
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 
 <body>
 
-    <div class="mc-gui">
-        <div class="mc-header">
-            <span class="mc-title">HBM Nuclear Tech: PWR Planner</span>
+    <main class="mc-gui">
+        
+        <header class="mc-header">
+            <h1 class="mc-title">HBM's Nuclear Tech: PWR Planner</h1>
             <span id="header-error-msg"></span>
-        </div>
+        </header>
 
         <div class="workspace">
 
-            <div class="sidebar">
+            <aside class="sidebar" aria-label="Reactor Controls">
 
                 <div class="stats-panel">
+                    <h2 class="mb-5">Reactor Dimensions</h2>
                     <div class="stat-row">
                         <label for="inp-size">Size (WxD):</label>
                         <input type="number" id="inp-size" value="7" min="3" max="17">
@@ -33,15 +63,15 @@
                 </div>
 
                 <div class="stats-panel">
-                    <div class="mb-5">Blocks</div>
+                    <h2 class="mb-5">Blocks Palette</h2>
                     <div class="slot-grid" id="palette-grid"></div>
                 </div>
 
                 <div class="stats-panel">
-                    <div class="mb-5">Fuel Configuration</div>
+                    <h2 class="mb-5">Fuel Configuration</h2>
                     <div class="stat-row flex-align-center mb-5">
-                        <img id="fuel-icon-display" class="icon-display-fuel" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Fuel Icon">
-                        <select id="sel-fuel-type" class="flex-1" onchange="UI.onFuelSelect()"></select>
+                        <img id="fuel-icon-display" class="icon-display-fuel" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Fuel Rod Icon">
+                        <select id="sel-fuel-type" class="flex-1" aria-label="Select Fuel Type" onchange="UI.onFuelSelect()"></select>
                     </div>
 
                     <div id="fuel-stats-panel" class="info-text mb-10">
@@ -58,17 +88,16 @@
                     </div>
 
                     <div class="flex-between-center mt-5">
-                        <span class="text-tiny">Density: <span id="val-density">0.00</span>/rod</span>
+                        <span class="text-small">Density: <span id="val-density">0.00</span>/rod</span>
                         <button class="mc-btn btn-tiny" onclick="UI.setMaxFuel()"><span>MAX</span></button>
                     </div>
                 </div>
 
                 <div class="stats-panel">
-                    <div class="mb-5">Coolant System</div>
+                    <h2 class="mb-5">Coolant System</h2>
 
                     <div class="stat-row mb-5 flex-align-center">
-                        <img id="coolant-icon-display" class="icon-display-fluid" src="">
-                        <select id="sel-coolant-type" class="flex-1" onchange="UI.onCoolantSelect()"></select>
+                        <img id="coolant-icon-display" class="icon-display-fluid" src="" alt="Coolant Fluid Icon"> <select id="sel-coolant-type" class="flex-1" aria-label="Select Coolant Type" onchange="UI.onCoolantSelect()"></select>
                     </div>
                     <div id="coolant-stats-panel" class="info-grid mb-10">
                         <span>Heat Cap: <span id="stat-cool-cap">0</span></span>
@@ -97,8 +126,7 @@
                 </div>
 
                 <div class="stats-panel">
-                    <div>Fluid I/O Control</div>
-
+                    <h2 class="mb-5">Fluid I/O Control</h2>
 
                     <div class="mt-5 stat-row">
                         <label for="inp-io-in">Input (mB/t):</label>
@@ -122,13 +150,13 @@
                         </label>
                     </div>
 
-                    <div class="mt-5 text-tiny">
+                    <div class="mt-5 text-small text-center">
                         Usage: <span id="val-io-usage">0</span> mB/t <br>
                     </div>
                 </div>
 
                 <div class="stats-panel">
-                    <button class="mc-btn btn-full mb-5" id="btn-toggle" onclick="Simulation.toggle()">START</button>
+                    <button class="mc-btn btn-full mb-5" id="btn-toggle" onclick="Simulation.toggle()">START SIMULATION</button>
                     <div class="stat-row mt-10">
                         <label for="tick-per-second">TPS:</label>
                         <input type="number" id="tick-per-second" value="20" min="0">
@@ -136,13 +164,15 @@
                 </div>
 
                 <div class="stats-panel">
+                    <h2 class="mb-5">Reactor Status</h2>
                     <div>Core Heat</div>
-                    <div class="progress-bar">
+                    <div class="progress-bar" role="progressbar" aria-label="Core Heat">
                         <div class="progress-fill" id="bar-heat-core"></div>
                     </div>
                     <div id="txt-heat-core" class="text-right text-small">0 / 10.0 MTU</div>
+                    
                     <div>Hull Heat</div>
-                    <div class="progress-bar">
+                    <div class="progress-bar" role="progressbar" aria-label="Hull Heat">
                         <div class="progress-fill" id="bar-heat-hull"></div>
                     </div>
                     <div id="txt-heat-hull" class="text-right text-small">0 / 10.0 MTU</div>
@@ -159,52 +189,60 @@
                     <div class="text-small">
                         <span onmouseenter="UI.showTooltip(event, 'Amount of time one rod of fuel will last under current conditions.')" 
                         onmouseleave="UI.hideTooltip()"
-                        >Fuel Life:</span>                   
+                        >Fuel Life:</span>                  
                         <span id="txt-fuel-life">0</span> 
                         <span id="lbl-fuel-unit" onclick="cycleFuelUnit()" onmousedown="event.preventDefault()" style="cursor: pointer; text-decoration: underline;">seconds</span>
                     </div>
 
                     <div class="mt-10">Control Rods Target</div>
                     <div class="flex-gap-5 flex-align-center">
-                        <input type="range" id="inp-control-slider" class="flex-1" min="0" max="100" value="100">
-                        <input type="number" id="inp-control-num" min="0" max="100" value="100">
+                        <input type="range" id="inp-control-slider" class="flex-1" min="0" max="100" value="100" aria-label="Control Rod Slider">
+                        <input type="number" id="inp-control-num" min="0" max="100" value="100" aria-label="Control Rod Value">
                     </div>
                     <div class="mt-10">Control Rods Insertion</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill " id="bar-rod-level"></div>
+                    <div class="progress-bar" role="progressbar" aria-label="Rod Insertion Level">
+                        <div class="progress-fill" id="bar-rod-level"></div>
                     </div>
                     <div class="text-small text-right" id="txt-rod-level">100%</div>
 
-                    <div class="text-center text-tiny opacity-80">(0% = Fully Inserted)</div>
+                    <div class="text-center text-small">(0% = Fully Inserted)</div>
                 </div>
 
-            </div>
+            </aside>
 
-            <div class="viewport" id="viewport">
-                <div class="mc-btn btn-add-layer" id="btn-add-layer" onclick="Reactor.addLayer()"></div>
-            </div>
+            <section class="viewport" id="viewport" aria-label="Reactor Grid">
+                <div class="mc-btn btn-add-layer" id="btn-add-layer" onclick="Reactor.addLayer()" title="Add Reactor Layer"></div>
+            </section>
 
         </div>
-    </div>
+        
+    <section class="sr-only">
+        <h3>About HBM:NTM PWR Planner</h3>
+            <p>
+                This <strong>HBM's Nuclear Tech Mod (NTM) Simulator</strong> helps Minecraft players design efficient Pressurized Water Reactors (PWR). 
+                Use this tool to calculate heat flux, optimize coolant flow, and predict energy output (HE/t) before building in survival mode. 
+                Compatible with HBM's Nuclear Tech Mod version 1.7.10 only. Test different fuel rod configurations, moderator blocks, and coolant types without risking a meltdown in your world.
+            </p>
+    </section>
+
+    </main>
 
     <dialog id="import-modal" class="mc-dialog">
         <div class="dialog-header">Import Reactor Design</div>
-        <span id="import-error"></span>               
+        <span id="import-error"></span>              
         <div class="dialog-body">
-            <div class="dialog-body"> <form onsubmit="IO.confirmImport(); return false;">
+             <form onsubmit="IO.confirmImport(); return false;">
                 <div class="text-small mb-5">Enter code below:</div>
                 <input type="text" id="inp-import-code" class="mc-input-text" placeholder="Paste code here..." autocomplete="off">
                 <div class="flex-gap-5 mt-10" style="justify-content: flex-end;">
                 <button type="button" class="mc-btn btn-half" onclick="IO.closeImportModal()">Cancel</button>
                 <button type="submit" class="mc-btn btn-half">IMPORT</button>
             </div>
-        </div>
+             </form> </div>
     </dialog>
 
-
-    <div class="tooltip" id="tooltip"></div>
+    <div class="tooltip" id="tooltip" role="tooltip"></div>
     <script src="sim.js" defer></script>
 
 </body>
-
 </html>

@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -58,7 +56,7 @@ body {
     height: 30px;
 }
 
-.mc-title {
+h1.mc-title {
     z-index: 1;
 }
 
@@ -176,8 +174,7 @@ body {
 
 .text-right { text-align: right; }
 .text-center { text-align: center; }
-.text-small { font-size: 0.8em; }
-.text-tiny { font-size: 0.7em; }
+.text-small { font-size: 0.7em; }
 .font-normal { font-size: 1em; }
 .opacity-80 { opacity: 0.8; }
 
@@ -234,12 +231,10 @@ body {
 
 .info-text {
     font-size: 0.8rem;
-    color: #888;
 }
 
 .info-grid {
     font-size: 0.75rem;
-    color: #888;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2px;
@@ -499,10 +494,10 @@ img, .cell, .block-icon, .fluid-tank, .icon-display {
     font-family: 'VT323', monospace;
 }
 
-/* Native dialog backdrop fix */
+
 .mc-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.65); /* Darker is usually better for games */
-    backdrop-filter: blur(2px);       /* Optional: nice modern touch */
+    background: rgba(0, 0, 0, 0.65); 
+    backdrop-filter: blur(2px);       
 }
 
 .dialog-header {
@@ -527,3 +522,33 @@ img, .cell, .block-icon, .fluid-tank, .icon-display {
     outline: none;
 }
 
+h1.mc-title {
+    display: inline;
+    font-size: inherit;
+    font-weight: inherit;
+    margin: 0; 
+    padding: 0;
+    line-height: inherit;
+}
+
+.sidebar h2 {
+    display: block;
+    font-size: inherit;
+    font-weight: inherit;
+    margin: 0;
+    padding: 0;
+
+    margin-bottom: 5px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
