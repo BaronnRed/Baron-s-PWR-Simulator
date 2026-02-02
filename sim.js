@@ -1,7 +1,7 @@
 
 const Registry = {
     BLOCKS: {
-        0: { name: "Air", texture: "air.png", color: "transparent"},
+        0: { name: "Air", texture: "textures/air.png", color: "transparent"},
         1: { name: "Reactor Casing", texture: "textures/pwr_casing.png"},
         2: { name: "Fuel Rod", texture: "textures/pwr_fuel_top.png"},
         3: { name: "Control Rod", texture: "textures/pwr_control_top.png"},
@@ -691,32 +691,32 @@ const IO = {
             // Grid
             g: gridString,
 
-            // New: Tanks
             tC: Math.floor(S.coolantAmount),      // Tank Cold
             tH: Math.floor(S.hotCoolantAmount),   // Tank Hot
 
-            // New: Fluid IO Settings
             iR: F.inputRate,
             oR: F.outputRate,
             aI: F.autoInput ? 1 : 0,    // 1 = Checked, 0 = Unchecked
             mO: F.matchOutput ? 1 : 0,
             
-            // New: Simulation Settings
             tps: tpsVal
         };
 
         try {
             const json = JSON.stringify(data);
             const code = btoa(json);
+            //Easy sharing update
+            const baseUrl = window.location.href.split('#')[0];
+            const link = `${baseUrl}#${code}`;
             
-            navigator.clipboard.writeText(code).then(() => {
+            navigator.clipboard.writeText(link).then(() => {
                 const btn = document.getElementById('btn-export');
                 if(!btn) return;
 
                 if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerText;
                 if (btn.dataset.timer) clearTimeout(parseInt(btn.dataset.timer));
 
-                btn.innerText = "Copied!";
+                btn.innerText = "Link Copied!";
                 btn.style.borderColor = "#55ff55";
                 btn.style.color = "#55ff55";
 
@@ -784,6 +784,10 @@ const IO = {
     importReactor(inputCode) {
         if (typeof inputCode !== 'string' || inputCode.trim() === "") {
             throw new Error("Input code is empty or invalid.");
+        }
+        //Easy Import
+        if (inputCode.includes('#')) {
+            inputCode = inputCode.split('#').pop();
         }
 
         try {
@@ -879,6 +883,31 @@ const IO = {
             document.getElementById('header-error-msg').innerText = "Import Failed: Invalid code or format."; 
             console.error(e);
         }
+    },
+    //Auto Import function
+    checkDeepLink() {
+        if(window.location.hash) {
+            // Strip the '#' and get the code
+            const potentialCode = window.location.hash.substring(1); 
+            
+            // Basic check to ensure it's not an empty hash or just a section anchor
+            if(potentialCode.length > 20) {
+                console.log("Deep link detected. Attempting import...");
+                try {
+                    this.importReactor(potentialCode);
+                    console.log("Deep link import successful.");
+                } catch(e) {
+                    console.warn("Deep link hash was not a valid reactor code.");
+                    errorSpan.innerText = "Import Error: " + e.message;
+
+                }
+            }
+            this.clearHash();
+        }
+    },
+    
+    clearHash(){
+        history.pushState("", document.title, window.location.pathname + window.location.search);
     }
 };
 
@@ -901,6 +930,13 @@ const UI = {
     
         // Stop drawing on global mouse up
         window.addEventListener('mouseup', () => this.drawMode = 0);
+
+        window.addEventListener('hashchange', () => {
+            if (window.location.hash.length > 1) {
+                console.log("Hash change detected. Importing...");
+                IO.checkDeepLink(); 
+            }
+        });
         
         // Sync Slider and Number Input
         const slider = document.getElementById('inp-control-slider');
@@ -920,6 +956,7 @@ const UI = {
             slider.value = val;
             Reactor.stats.controlInsertion = val;
         });
+        IO.checkDeepLink();
     },
 
     resetGrid() {
