@@ -911,23 +911,24 @@ const IO = {
 };
 
 const ReactorPrinter = {
-    // Configuration for the output images
+
     config: {
-        tileSize: 64,       // Resolution of the block face
-        blockHeight: 32,    // Height of the 3D block sides
-        sideColorLeft: '#4a4a4a',  // Dark grey for left face
-        sideColorRight: '#333333', // Darker grey for right face
-        backgroundColor: null      // null = transparent
+        gridSize: 32,       // The "step" size for the grid (half the visual width)
+        textureSize: 32,    // The source size to draw (scaled down from 64 to fit grid)
+        blockDepth: 32,     // Visual height of the block sides
     },
 
-    /**
-     * Main entry point. Loads textures, renders layers, and zips them.
-     */
     async download(reactorData) {
+        // UI Handling
         const errorEl = document.getElementById('header-error-msg');
         const btn = document.getElementById('btn-download');
 
-        // 2. Check for dependencies
+        const error = Simulation.validateStructure();
+        if (error) {
+            Simulation.triggerError(error);
+            return;
+        }
+
         if (!window.JSZip || !window.saveAs) {
             // Print error to HTML existing element
             if (errorEl) {
@@ -942,39 +943,42 @@ const ReactorPrinter = {
             return;
         }
 
-        const zip = new JSZip();
-        const textureMap = await this.preloadTextures();
+        try {
+            const zip = new JSZip();
+            const textureMap = await this.preloadTextures();
+            const casingTex = textureMap[1]; //Reactor Casing
 
-        // Iterate through all layers in the reactor
-        for (let z = 0; z < reactorData.layers.length; z++) {
-            console.log(`Rendering Layer ${z}...`);
-            const canvas = this.renderLayer(z, reactorData, textureMap);
+            // Render each layer
+            for (let z = 0; z < reactorData.layers.length; z++) {
+                // Pass the casing texture explicitly for sides
+                const canvas = this.renderLayer(z, reactorData, textureMap, casingTex);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve));
+                zip.file(`slice_${z}.png`, blob);
+            }
+
+            const content = await zip.generateAsync({ type: "blob" });
+            saveAs(content, "reactor_schematic.zip");
             
-            // Convert canvas to Blob data for the zip
-            const blob = await new Promise(resolve => canvas.toBlob(resolve));
-            zip.file(`slice_${z}.png`, blob);
+        } catch (e) {
+            console.error(e);
+            if(errorEl) errorEl.innerText = "Error generating images. See console.";
+        } finally {
+            if(btn) btn.innerText = originalText;
         }
-
-        console.log("Generating Zip...");
-        const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, "reactor_schematic.zip");
     },
 
-    /**
-     * Preloads all textures defined in Registry.BLOCKS
-     */
     preloadTextures() {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const promises = [];
             const loadedTextures = {};
 
             Object.keys(Registry.BLOCKS).forEach(id => {
                 const block = Registry.BLOCKS[id];
-                if (id == 0 || !block.texture) return; // Skip Air or missing textures
+                if (id == 0 || !block.texture) return; 
 
-                const p = new Promise((res, rej) => {
+                const p = new Promise((res) => {
                     const img = new Image();
-                    img.crossOrigin = "Anonymous"; // Handle potential CORS issues
+                    img.crossOrigin = "Anonymous"; 
                     img.src = block.texture;
                     img.onload = () => {
                         loadedTextures[id] = img;
@@ -982,7 +986,7 @@ const ReactorPrinter = {
                     };
                     img.onerror = () => {
                         console.warn(`Failed to load texture for ${block.name}`);
-                        res(); // Resolve anyway to prevent hanging
+                        res(); 
                     };
                 });
                 promises.push(p);
@@ -992,104 +996,127 @@ const ReactorPrinter = {
         });
     },
 
-    /**
-     * Renders a specific layer to an Isometric Canvas
-     */
-    renderLayer(layerIndex, reactor, textureMap) {
+    // Calculate the absolute pixel bounds of the isometric layer
+    calculateBounds(size) {
+        const stepX = this.config.gridSize;     // 32
+        const stepY = this.config.gridSize / 2; // 16
+
+        // The four corners of the grid in isometric coordinates
+        // Top (0,0), Right (N,0), Bottom (N,N), Left (0,N)
+        // Formula: isoX = (x - y) * stepX
+        //          isoY = (x + y) * stepY
+        
+        const maxX = size - 1;
+        const maxY = size - 1;
+
+        const c1 = { x: (0 - 0) * stepX,       y: (0 + 0) * stepY };
+        const c2 = { x: (maxX - 0) * stepX,    y: (maxX + 0) * stepY };
+        const c3 = { x: (maxX - maxY) * stepX, y: (maxX + maxY) * stepY };
+        const c4 = { x: (0 - maxY) * stepX,    y: (0 + maxY) * stepY };
+
+        const xs = [c1.x, c2.x, c3.x, c4.x];
+        const ys = [c1.y, c2.y, c3.y, c4.y];
+
+        return {
+            minX: Math.min(...xs),
+            maxX: Math.max(...xs),
+            minY: Math.min(...ys),
+            maxY: Math.max(...ys)
+        };
+    },
+
+renderLayer(layerIndex, reactor, textureMap, casingTex) {
+
         const size = reactor.size;
         const c = this.config;
         
-        // Calculate Canvas Dimensions
-        // Isometric width = size * tileSize
-        // Isometric height = size * (tileSize/2) + vertical_offset_for_depth
-        const canvas = document.createElement('canvas');
-        const isoW = c.tileSize; 
-        const isoH = c.tileSize / 2;
-        
-        canvas.width = (size * isoW) + isoW; // Buffer
-        canvas.height = (size * isoH) + c.blockHeight + isoH; // Buffer
-        const ctx = canvas.getContext('2d');
+        // 1. Calculate Canvas Size & Offset
+        const bounds = this.calculateBounds(size);
+        const padding = 64; 
 
-        // Settings for pixel-art crispness
+        const width = (bounds.maxX - bounds.minX) + (c.gridSize * 2) + padding;
+        const height = (bounds.maxY - bounds.minY) + c.blockDepth + c.gridSize + padding;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
         ctx.imageSmoothingEnabled = false;
 
-        // Optional Background
-        if (c.backgroundColor) {
-            ctx.fillStyle = c.backgroundColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+        // 2. Set Origin
+        const originX = -bounds.minX + (padding / 2) + c.gridSize;
+        const originY = -bounds.minY + (padding / 2);
 
-        // Center the grid horizontally
-        const originX = canvas.width / 2;
-        const originY = c.blockHeight; // Start slightly down to fit top blocks
-
-        // Draw blocks in "Painter's Algorithm" order (Back to Front)
-        // For isometric: Y goes 0->Max, X goes 0->Max
+        // 3. Render Loop
         for (let y = 0; y < size; y++) {
             for (let x = 0; x < size; x++) {
                 const blockId = reactor.getBlock(x, y, layerIndex);
+                if (blockId === 0) continue; 
 
-                // Do not draw Air (0)
-                if (blockId === 0) continue;
+                // Isometric Position
+                const screenX = originX + (x - y) * c.gridSize;
+                const screenY = originY + (x + y) * (c.gridSize / 2);
 
-                // Calculate screen position
-                // Classic Isometric Formula:
-                // screenX = (x - y) * width/2
-                // screenY = (x + y) * height/2
-                const screenX = originX + (x - y) * (isoW / 2);
-                const screenY = originY + (x + y) * (isoH / 2);
+                // --- TEXTURE LOGIC FIX ---
+                let topTex = textureMap[blockId];
+                let sideTex = casingTex; // Default side is Casing (ID 1)
 
-                this.drawIsoBlock(ctx, screenX, screenY, textureMap[blockId]);
+                // Special Case: Neutron Reflector (ID 6)
+                // Its sides should be Reflector texture, not Casing
+                if (blockId === 6) {
+                    sideTex = textureMap[6];
+                }
+
+                // Special Case: Controller (ID 8)
+                // Side is Controller, but Top is Casing
+                if (blockId === 8) {
+                    topTex = casingTex;    // Swap top to Casing
+                    sideTex = textureMap[8]; // Keep side as Controller
+                }
+
+                this.drawBlock(ctx, screenX, screenY, topTex, sideTex);
             }
         }
-
         return canvas;
     },
 
-    /**
-     * Draws a single block with fake 3D depth and top texture
-     */
-    drawIsoBlock(ctx, x, y, textureImg) {
+    drawBlock(ctx, x, y, topTex, sideTex) {
         const c = this.config;
-        const halfW = c.tileSize / 2;
-        const halfH = c.tileSize / 4; // Because isometric is 2:1 ratio usually
+        const size = c.textureSize; // 32
 
-        // 1. Draw the "Fake" Sides (The depths)
-        // Left Face
-        ctx.fillStyle = c.sideColorLeft;
-        ctx.beginPath();
-        ctx.moveTo(x, y + halfH);                   // Top Center (bottom of diamond)
-        ctx.lineTo(x - halfW, y);                   // Left Corner
-        ctx.lineTo(x - halfW, y + c.blockHeight);   // Left Corner Drop
-        ctx.lineTo(x, y + halfH + c.blockHeight);   // Bottom Center
-        ctx.closePath();
-        ctx.fill();
-
-        // Right Face
-        ctx.fillStyle = c.sideColorRight;
-        ctx.beginPath();
-        ctx.moveTo(x, y + halfH);                   // Top Center
-        ctx.lineTo(x + halfW, y);                   // Right Corner
-        ctx.lineTo(x + halfW, y + c.blockHeight);   // Right Corner Drop
-        ctx.lineTo(x, y + halfH + c.blockHeight);   // Bottom Center
-        ctx.closePath();
-        ctx.fill();
-
-        // 2. Draw the Top Face (The Texture)
-        if (textureImg) {
+        // --- 1. Left Face ---
+        if (sideTex) {
             ctx.save();
-            ctx.translate(x, y - halfH); // Move to center of the diamond
+            ctx.translate(x - size, y); // Position at left corner
+            // Skew vertically for left face
+            ctx.transform(1, 0.5, 0, 1, 0, 0); 
+            ctx.filter = "brightness(0.6)"; // Darken side
+            // Scale texture to fill the depth
+            ctx.drawImage(sideTex, 0, 0, sideTex.width, sideTex.height, 0, 0, size, c.blockDepth);
+            ctx.restore();
+        }
+
+        // --- 2. Right Face ---
+        if (sideTex) {
+            ctx.save();
+            ctx.translate(x, y + (size/2)); // Position at bottom center
+            // Skew vertically for right face
+            ctx.transform(1, -0.5, 0, 1, 0, 0); 
+            ctx.filter = "brightness(0.8)"; // Slightly lighter side
+            ctx.drawImage(sideTex, 0, 0, sideTex.width, sideTex.height, 0, 0, size, c.blockDepth);
+            ctx.restore();
+        }
+
+        // --- 3. Top Face ---
+        if (topTex) {
+            ctx.save();
+            ctx.translate(x, y - (size/2)); // Position at top center
+            // ISOMETRIC TRANSFORM: [1, 0.5, -1, 0.5, 0, 0]
+            // This turns a square into the top diamond
+            ctx.transform(1, 0.5, -1, 0.5, 0, 0); 
             
-            // ISOMETRIC TRANSFORMATION MATRIX
-            // This squashes the square texture into a diamond
-            // [scaleX, skewY, skewX, scaleY, transX, transY]
-            // Standard Iso: (1, 0.5, -1, 0.5) scaled appropriately
-            ctx.transform(1, 0.5, -1, 0.5, 0, 0);
-            
-            // Draw the image. We draw it at half size because the matrix stretches it
-            const drawSize = c.tileSize / 2;
-            ctx.drawImage(textureImg, 0, 0, textureImg.width, textureImg.height, -drawSize, -drawSize, c.tileSize, c.tileSize);
-            
+            ctx.drawImage(topTex, 0, 0, topTex.width, topTex.height, 0, 0, size, size);
             ctx.restore();
         }
     }
