@@ -152,78 +152,86 @@ const Reactor = {
         };
     },
 
-    resetSimulation() {
-        this.stats.coreHeat = 0;
-        this.stats.hullHeat = 0;
-        this.stats.flux = 0;
+        resetSimulation() {
+            this.stats.coreHeat = 0;
+            this.stats.hullHeat = 0;
+            this.stats.flux = 0;
 
-        this.stats.coolantAmount = 0;
-        this.stats.hotCoolantAmount = 0;
-        
-        this.stats.rodLevel = this.stats.controlInsertion;
+            this.stats.coolantAmount = 0;
+            this.stats.hotCoolantAmount = 0;
+            
+            this.stats.rodLevel = this.stats.controlInsertion;
 
-    },
+        },
 
-    addLayer() {
-        const layer = [];
-        for(let y=0; y<this.size; y++) {
-            layer.push(new Array(this.size).fill(0)); // 0 = Air
-        }
-        this.layers.push(layer);
-        UI.renderViewport();
-    },
+        moveLayer(fromIndex, toIndex) {
+            if (fromIndex === toIndex) return;
+            const layerToMove = this.layers.splice(fromIndex, 1)[0];
+            this.layers.splice(toIndex, 0, layerToMove);
+            UI.renderViewport();
 
-    duplicateLayer(index) {
-        if(index < 0 || index >= this.layers.length) return;
-        const newLayer = this.layers[index].map(row => [...row]);
-        this.layers.splice(index + 1, 0, newLayer);
-        UI.renderViewport();
-    },
+        },
 
-    removeLayer(index) {
-        if(this.layers.length <= 1) return;
-        this.layers.splice(index, 1);
-        UI.renderViewport();
-    },
-
-    clearLayer(index) {
-    this.fillLayer(index, 0);
-    },
-
-    fillLayer(index, blockId) {
-    this.iter2D(index, (x, y) => {
-        this.layers[index][y][x] = blockId;
-    });
-    UI.updateLayerDOM(index);
-    },
-
-    borderLayer(index, blockId) {
-        const s = this.size;
-        this.iter2D(index, (x, y) => {
-            // Check if we are on any edge
-            if (x === 0 || x === s - 1 || y === 0 || y === s - 1) {
-                this.layers[index][y][x] = blockId;
+        addLayer() {
+            const layer = [];
+            for(let y=0; y<this.size; y++) {
+                layer.push(new Array(this.size).fill(0)); // 0 = Air
             }
+            this.layers.push(layer);
+            UI.renderViewport();
+        },
+
+        duplicateLayer(index) {
+            if(index < 0 || index >= this.layers.length) return;
+            const newLayer = this.layers[index].map(row => [...row]);
+            this.layers.splice(index + 1, 0, newLayer);
+            UI.renderViewport();
+        },
+
+        removeLayer(index) {
+            if(this.layers.length <= 1) return;
+            this.layers.splice(index, 1);
+            UI.renderViewport();
+        },
+
+        clearLayer(index) {
+        this.fillLayer(index, 0);
+        },
+
+        fillLayer(index, blockId) {
+        this.iter2D(index, (x, y) => {
+            this.layers[index][y][x] = blockId;
         });
         UI.updateLayerDOM(index);
-    },
+        },
 
-    setBlock(z, x, y, id) {
-        if(this.layers[z] && this.layers[z][y] !== undefined) {
-            this.layers[z][y][x] = id;
-            return true;
+        borderLayer(index, blockId) {
+            const s = this.size;
+            this.iter2D(index, (x, y) => {
+                // Check if we are on any edge
+                if (x === 0 || x === s - 1 || y === 0 || y === s - 1) {
+                    this.layers[index][y][x] = blockId;
+                }
+            });
+            UI.updateLayerDOM(index);
+        },
+
+        setBlock(z, x, y, id) {
+            if(this.layers[z] && this.layers[z][y] !== undefined) {
+                this.layers[z][y][x] = id;
+                return true;
+            }
+            return false;
+        },
+
+        // Get block safely
+        getBlock(x, y, z) {
+            if (z < 0 || z >= this.layers.length) return 0;
+            if (y < 0 || y >= this.size) return 0;
+            if (x < 0 || x >= this.size) return 0;
+            return this.layers[z][y][x];
         }
-        return false;
-    },
-
-    // Get block safely
-    getBlock(x, y, z) {
-        if (z < 0 || z >= this.layers.length) return 0;
-        if (y < 0 || y >= this.size) return 0;
-        if (x < 0 || x >= this.size) return 0;
-        return this.layers[z][y][x];
-    }
-};
+    };
 
 const Simulation = {
     intervalId: null,
@@ -1651,18 +1659,71 @@ updateToggleBtn(isRunning) {
         Reactor.layers.forEach((layer, zIndex) => {
             const container = document.createElement('div');
             container.className = 'layer-container';
+            container.draggable = false;
+
+            container.ondragstart = (e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', zIndex); // Store the source index
+            container.style.opacity = '0.5'; // Visual feedback
+        };
+
+        // 2. Drag End: Reset visual feedback
+        container.ondragend = () => {
+            container.style.opacity = '1';
+            container.draggable = false;
+            // Remove any drag-over highlights from all containers
+            document.querySelectorAll('.layer-container').forEach(el => {
+                el.style.border = ''; 
+            });
+        };
+
+        // 3. Drag Over: Allow dropping here
+        container.ondragover = (e) => {
+            e.preventDefault(); // Necessary to allow dropping
+            e.dataTransfer.dropEffect = 'move';
+            // Optional: Add a border to show where it will land
+            container.style.border = '2px dashed #fff'; 
+        };
+
+        // 4. Drag Leave: Clean up style
+        container.ondragleave = () => {
+            container.style.border = '';
+        };
+
+        // 5. Drop: Execute the move
+        container.ondrop = (e) => {
+            e.preventDefault();
+            container.style.border = ''; // Clear style
+            
+            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+            Reactor.moveLayer(fromIndex, zIndex);
+        };
     
-            container.innerHTML = `
-                <div class="layer-header">
-                    <span>Layer ${zIndex+1}</span>
-                    <button class="mc-btn" style="padding:0 5px; font-size:0.8rem;" onclick="Reactor.duplicateLayer(${zIndex})">CPY</button>
-                    <button class="mc-btn" style="padding:0 5px; font-size:0.8rem;" onclick="Reactor.fillLayer(${zIndex}, UI.selectedBlock)">FILL</button>
-                    <button class="mc-btn" style="padding:0 5px; font-size:0.8rem;" onclick="Reactor.borderLayer(${zIndex}, UI.selectedBlock)">BORDER</button>
-                    <button class="mc-btn" style="padding:0 5px; font-size:0.8rem;" onclick="Reactor.clearLayer(${zIndex})">CLR</button>
-                    <button class="mc-btn" style="padding:0 5px; font-size:0.8rem; color:#ff5555" onclick="Reactor.removeLayer(${zIndex})">X</button>
-                </div>
-            `;
+        container.innerHTML = `
+            <div class="layer-header">
+                <span>Layer ${zIndex+1}</span>
+                <button class="mc-btn" style="padding:0 5px; font-size:0.8rem;" onclick="Reactor.duplicateLayer(${zIndex})">CPY</button>
+                <button class="mc-btn" style="padding:0 5px; font-size:0.8rem;" onclick="Reactor.fillLayer(${zIndex}, UI.selectedBlock)">FILL</button>
+                <button class="mc-btn" style="padding:0 5px; font-size:0.8rem;" onclick="Reactor.borderLayer(${zIndex}, UI.selectedBlock)">BORDER</button>
+                <button class="mc-btn" style="padding:0 5px; font-size:0.8rem;" onclick="Reactor.clearLayer(${zIndex})">CLR</button>
+                <button class="mc-btn" style="padding:0 5px; font-size:0.8rem; color:#ff5555" onclick="Reactor.removeLayer(${zIndex})">X</button>
+            </div>
+        `;
     
+        const header = container.querySelector('.layer-header');
+    
+        header.onmousedown = (e) => {
+        // Prevent drag if clicking buttons inside header
+        if(e.target.tagName === 'BUTTON') return;
+        // Enable drag on parent ONLY when holding header
+            container.draggable = true; 
+        };
+
+        header.onmouseup = () => {
+            // If we just clicked without dragging, reset state
+            container.draggable = false;
+        };
+
             const grid = document.createElement('div');
             grid.className = 'grid-editor';
             grid.id = `layer-${zIndex}`;
