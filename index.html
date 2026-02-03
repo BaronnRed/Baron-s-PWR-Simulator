@@ -56,10 +56,13 @@
                         <input type="number" id="inp-size" value="7" min="3" max="17">
                     </div>
                     <button class="mc-btn btn-full mt-5" id="btn-reset" onclick="UI.resetGrid()"><span>New Reactor</span></button>
-                    <button class="mc-btn btn-full mt-5" id="btn-download" onclick="ReactorPrinter.download(Reactor)" class="mc-btn">Print Reactor</button>
                     <div class="flex-gap-5 mt-5">
-                        <button class="mc-btn flex-1 btn-half" id="btn-export" onclick="IO.exportReactor()"><span>Export Reactor</span></button>
-                        <button class="mc-btn flex-1 btn-half" id="btn-import" onclick="IO.openImportModal()"><span>Import Reactor</span></button>
+                    <button class="mc-btn flex-1 btn-half" id="btn-download" onclick="ReactorPrinter.download(Reactor)">Print Layers</button>
+                    <button class="mc-btn flex-1 btn-half" id="btn-print" onclick="ReactorPrinter.exportToPng(Reactor)">Print Reactor</button>
+                    </div>
+                    <div class="flex-gap-5 mt-5">
+                        <button class="mc-btn flex-1 btn-half" id="btn-export" onclick="IO.exportReactor()"><span>Export</span></button>
+                        <button class="mc-btn flex-1 btn-half" id="btn-import" onclick="IO.openImportModal()"><span>Import</span></button>
                     </div>
                 </div>
 

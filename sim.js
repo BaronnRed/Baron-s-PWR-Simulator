@@ -965,6 +965,129 @@ const ReactorPrinter = {
         }
     },
 
+    async exportToPng(reactor) {
+        if (!window.saveAs) {
+            console.error("FileSaver.js (window.saveAs) is missing.");
+            return;
+        }
+
+        try {
+            const textureMap = await this.preloadTextures();
+            const casingTex = textureMap[1];
+            
+            // --- SETTING: GAP SIZE ---
+            // This is the literal pixels of empty air between layers.
+            // Positive = Floating apart. Negative = Overlapping.
+            const spacing = -40; 
+
+            // 1. Render Raw Layers (Full Grid Size)
+            const rawCanvases = [];
+            for (let z = 0; z < reactor.layers.length; z++) {
+                rawCanvases.push(this.renderLayer(z, reactor, textureMap, casingTex));
+            }
+
+            // 2. Calculate Global Bounds (Union of all layers)
+            // We need one common box for ALL layers to preserve relative x/y alignment.
+            const bounds = this.getGlobalOccupiedBounds(reactor);
+            
+            // 3. Crop all layers to the SAME global bounds
+            const layerCanvases = rawCanvases.map(canvas => 
+                this.cropCanvas(canvas, bounds)
+            );
+
+            // 4. Calculate Dimensions
+            // For a true exploded view, the step must be the full image height + gap
+            const frameHeight = bounds.h;
+            const layerStep = frameHeight + spacing; 
+
+            let totalHeight = frameHeight;
+            if (layerCanvases.length > 1) {
+                 totalHeight += (layerCanvases.length - 1) * layerStep;
+            }
+
+            // 5. Create Master Canvas
+            const master = document.createElement('canvas');
+            master.width = bounds.w; 
+            master.height = totalHeight > 0 ? totalHeight : 100;
+            const ctx = master.getContext('2d');
+
+            // 6. Stack Layers (Top to Bottom)
+            let currentY = 0;
+            
+            // 'source-over' is fine here because we are spacing them apart (no overlap),
+            // but 'destination-over' is safer if you ever decide to use negative spacing.
+            ctx.globalCompositeOperation = 'destination-over';
+
+            for (let z = reactor.layers.length - 1; z >= 0; z--) {
+                const layer = layerCanvases[z];
+                // Draw centered (since they are all cropped to the same width)
+                ctx.drawImage(layer, 0, currentY);
+                currentY += layerStep;
+            }
+
+            master.toBlob((blob) => {
+                window.saveAs(blob, "reactor_exploded.png");
+            });
+
+        } catch (e) {
+            console.error("Error exporting PNG:", e);
+        }
+    },
+
+    // Scans the ENTIRE reactor to find the min/max X/Y of any block
+    getGlobalOccupiedBounds(reactor) {
+        let minX = Infinity, minY = Infinity;
+        let maxX = -Infinity, maxY = -Infinity;
+        let hasBlocks = false;
+
+        // Base geometric offsets (Must match renderLayer logic)
+        const gridBounds = this.calculateBounds(reactor.size);
+        const padding = 64;
+        const originX = -gridBounds.minX + (padding / 2) + this.config.gridSize;
+        const originY = -gridBounds.minY + (padding / 2);
+        
+        // Loop through every block in every layer
+        reactor.iter3D((x, y, z, id) => {
+            if (id === 0) return; 
+            hasBlocks = true;
+
+            const screenX = originX + (x - y) * this.config.gridSize;
+            const screenY = originY + (x + y) * (this.config.gridSize / 2);
+
+            // Add margin for the sprite size (approx 32x32 + depth)
+            // We expand the box slightly to ensure no pixels are cut off
+            if (screenX - 40 < minX) minX = screenX - 40;
+            if (screenX + 72 > maxX) maxX = screenX + 72; // Width of sprite
+            if (screenY - 40 < minY) minY = screenY - 40;
+            if (screenY + 72 > maxY) maxY = screenY + 72; // Height + Depth
+        });
+
+        if (!hasBlocks) return { x:0, y:0, w:100, h:100 };
+
+        return {
+            x: Math.floor(minX),
+            y: Math.floor(minY),
+            w: Math.ceil(maxX - minX),
+            h: Math.ceil(maxY - minY)
+        };
+    },
+
+    cropCanvas(sourceCanvas, rect) {
+        // Create a new canvas of the exact size of the occupied area
+        const dest = document.createElement('canvas');
+        dest.width = rect.w;
+        dest.height = rect.h;
+        const ctx = dest.getContext('2d');
+
+        // Copy just the relevant region
+        ctx.drawImage(
+            sourceCanvas, 
+            rect.x, rect.y, rect.w, rect.h, 
+            0, 0, rect.w, rect.h
+        );
+        return dest;
+    },
+
     preloadTextures() {
         return new Promise((resolve) => {
             const promises = [];
@@ -1163,7 +1286,6 @@ const UI = {
             num.value = val;
             Reactor.stats.controlInsertion = val;
         });
-
     
         num.addEventListener('input', (e) => {
             let val = parseInt(e.target.value);
