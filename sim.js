@@ -962,8 +962,6 @@ const ReactorPrinter = {
         } catch (e) {
             console.error(e);
             if(errorEl) errorEl.innerText = "Error generating images. See console.";
-        } finally {
-            if(btn) btn.innerText = originalText;
         }
     },
 
@@ -1058,53 +1056,60 @@ renderLayer(layerIndex, reactor, textureMap, casingTex) {
                 const screenX = originX + (x - y) * c.gridSize;
                 const screenY = originY + (x + y) * (c.gridSize / 2);
 
-                // --- TEXTURE LOGIC FIX ---
                 let topTex = textureMap[blockId];
-                let sideTex = casingTex; // Default side is Casing (ID 1)
+                let rightTex = casingTex; 
+                let leftTex = casingTex;
 
-                // Special Case: Neutron Reflector (ID 6)
-                // Its sides should be Reflector texture, not Casing
+                // 2. Special Case: Neutron Reflector (ID 6)
                 if (blockId === 6) {
-                    sideTex = textureMap[6];
+                    rightTex = textureMap[6];
+                    leftTex = textureMap[6];
                 }
 
-                // Special Case: Controller (ID 8)
-                // Side is Controller, but Top is Casing
+                // 3. Special Case: Controller (ID 8)
                 if (blockId === 8) {
-                    topTex = casingTex;    // Swap top to Casing
-                    sideTex = textureMap[8]; // Keep side as Controller
+                    topTex = casingTex; // Force top to casing
+                    
+                    // Decide which side gets the screen
+                    if (x >= y) {
+                        rightTex = textureMap[8]; // Screen on Right
+                    } else {
+                        leftTex = textureMap[8];  // Screen on Left
+                    }
                 }
+                
 
-                this.drawBlock(ctx, screenX, screenY, topTex, sideTex);
+                this.drawBlock(ctx, screenX, screenY, topTex, rightTex, leftTex);
             }
         }
         return canvas;
     },
 
-    drawBlock(ctx, x, y, topTex, sideTex) {
+    drawBlock(ctx, x, y, topTex, rightSide, leftSide) {
         const c = this.config;
         const size = c.textureSize; // 32
 
+
         // --- 1. Left Face ---
-        if (sideTex) {
+        if (leftSide) {
             ctx.save();
             ctx.translate(x - size, y); // Position at left corner
             // Skew vertically for left face
             ctx.transform(1, 0.5, 0, 1, 0, 0); 
             ctx.filter = "brightness(0.6)"; // Darken side
             // Scale texture to fill the depth
-            ctx.drawImage(sideTex, 0, 0, sideTex.width, sideTex.height, 0, 0, size, c.blockDepth);
+            ctx.drawImage(leftSide, 0, 0, leftSide.width, leftSide.height, 0, 0, size, c.blockDepth);
             ctx.restore();
         }
 
         // --- 2. Right Face ---
-        if (sideTex) {
+        if (rightSide) {
             ctx.save();
             ctx.translate(x, y + (size/2)); // Position at bottom center
             // Skew vertically for right face
             ctx.transform(1, -0.5, 0, 1, 0, 0); 
             ctx.filter = "brightness(0.8)"; // Slightly lighter side
-            ctx.drawImage(sideTex, 0, 0, sideTex.width, sideTex.height, 0, 0, size, c.blockDepth);
+            ctx.drawImage(rightSide, 0, 0, rightSide.width, rightSide.height, 0, 0, size, c.blockDepth);
             ctx.restore();
         }
 
