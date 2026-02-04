@@ -1516,12 +1516,15 @@ const UI = {
     document.getElementById('stat-cool-flux').innerText = coolant.fluxMult;
     document.getElementById('stat-cool-heat').innerText = coolant.heatEff;
     document.getElementById('stat-cool-cool').innerText = coolant.coolEff;
+    document.getElementById('stat-cool-ISP').innerText = coolant.ISP;
+    document.getElementById('stat-cool-thrust').innerText = this.formatEnergy(coolant.thrust);
     
     // Update State
     Reactor.stats.selectedCoolant = coolant;
     
     // Update Tank Colors based on selection
     document.getElementById('tank-fill-cold').style.backgroundColor = coolant.color;
+    this.updateStats()
     },
 
     onFluidIOChange() {
@@ -1888,6 +1891,28 @@ updateToggleBtn(isRunning) {
         updateHeatVisuals('bar-heat-core', S.coreHeat, S.maxHeat);
         updateHeatVisuals('bar-heat-hull', S.hullHeat, S.maxHeat);
 
+        const isRocketFluid = S.selectedCoolant && (S.selectedCoolant.ISP !== undefined);
+
+        safeUpdate('container-isp', 'display', isRocketFluid ? 'block' : 'none');
+        safeUpdate('container-thrust', 'display', isRocketFluid ? 'block' : 'none');
+        safeUpdate('coolant-stats-panel3', 'display', isRocketFluid ? 'grid' : 'none');
+        safeUpdate('container-energy-produced', 'display', isRocketFluid ? 'none' : 'block');
+        safeUpdate('coolant-stats-panel2', 'display', isRocketFluid ? 'none' : 'grid');
+        
+        if (isRocketFluid) {
+            const liquid = S.selectedCoolant;
+            totalISP = liquid.ISP * S.fluidio.usage / 1000 // per bucket
+            totalThrust = liquid.thrust * S.fluidio.usage / 1000
+            safeText('txt-isp', this.formatEnergy(totalISP));
+            safeText('txt-thrust', this.formatEnergy(totalThrust));
+        }else{
+            let displayEnergy = S.usableHeat
+            if (this.energyMode === 0) {
+                displayEnergy = S.usableHeat * 20;
+            }
+            safeText('txt-energy-produced', this.formatEnergy(displayEnergy))
+        }
+
         safeText('txt-heat-core', `${Math.floor(S.coreHeat).toLocaleString()} TU / ${(S.maxHeat/1_000_000).toFixed(1)} MTU`);
         safeText('txt-heat-hull', `${Math.floor(S.hullHeat).toLocaleString()} TU / ${(S.maxHeat/1_000_000).toFixed(1)} MTU`);
         safeText('txt-rods', S.struct.rodCount);
@@ -1900,13 +1925,6 @@ updateToggleBtn(isRunning) {
             displayLife = S.fuelLife * 20;
         }
         safeText('txt-fuel-life', `${Math.floor(displayLife)}`);
-
-        let displayEnergy = S.usableHeat
-        if (this.energyMode === 0) {
-            displayEnergy = S.usableHeat * 20;
-        }
-        safeText('txt-energy-produced', this.formatEnergy(displayEnergy))
-
 
         const cap = Reactor.TANK_CAPACITY || 128_000;
         // Cold Tank

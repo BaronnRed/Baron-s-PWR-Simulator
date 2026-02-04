@@ -103,12 +103,21 @@
                     <div class="stat-row mb-5 flex-align-center">
                         <img id="coolant-icon-display" class="icon-display-fluid" src="" alt="Coolant Fluid Icon"> <select id="sel-coolant-type" class="flex-1" aria-label="Select Coolant Type" onchange="UI.onCoolantSelect()"></select>
                     </div>
-                    <div id="coolant-stats-panel" class="info-grid mb-10">
+                    <div id="coolant-stats-panel1" class="info-grid">
                         <span>Heat Cap: <span id="stat-cool-cap">0</span></span>
                         <span>Flux Mult: <span id="stat-cool-flux">0</span></span>
+                    </div>
+                    <div id="coolant-stats-panel2" class="info-grid">
                         <span>Heat Eff: <span id="stat-cool-heat">0</span></span>
                         <span>Cool Eff: <span id="stat-cool-cool">0</span></span>
                     </div>
+                    <div id="coolant-stats-panel3" class="info-grid">
+                        <span>ISP: <span id="stat-cool-ISP">0</span></span>
+                        <span>Thrust: <span id="stat-cool-thrust">0</span></span> 
+                    </div>    
+
+         
+                    
                     
                     <div class="tank-group">
                         <div class="tank-wrapper">
@@ -186,7 +195,7 @@
                     <div class="text-small">Structural Efficiency: <span id="val-struct-mult">0</span></div>
 
 
-                    <div class="text-small">
+                    <div id="container-energy-produced" class="text-small">
                         <span onmouseenter="UI.showTooltip(event, 'At 100% efficiency')" 
                         onmouseleave="UI.hideTooltip()">Energy:</span>
                         <span onclick="cycleEnergyUnit()" onmousedown="event.preventDefault()" style="cursor: pointer; text-decoration: underline;"><span id="txt-energy-produced">0</span><span>HE</span><span id="energy-unit">/s</span></span>
@@ -198,6 +207,14 @@
                         >Fuel Life:</span>                  
                         <span id="txt-fuel-life">0</span> 
                         <span id="lbl-fuel-unit" onclick="cycleFuelUnit()" onmousedown="event.preventDefault()" style="cursor: pointer; text-decoration: underline;">seconds</span>
+                    </div>
+
+                    <div id="container-isp" class="text-small">
+                        <span onmouseenter="UI.showTooltip(event, 'NTM:Space feature')" onmouseleave="UI.hideTooltip()">ISP: </span><span id="txt-isp">0</span>
+                    </div>
+
+                    <div id= "container-thrust" class="text-small">
+                        <span onmouseenter="UI.showTooltip(event, 'NTM:Space feature')" onmouseleave="UI.hideTooltip()">Thrust: </span><span id="txt-thrust">0</span><span>N</span>
                     </div>
 
                     <div class="mt-10">Control Rods Target</div>
