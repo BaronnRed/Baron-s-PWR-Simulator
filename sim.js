@@ -75,7 +75,6 @@ const Reactor = {
         flux: 0,                // Current Flux (Result of previous tick)
         baseFlux: 0,            // From Neutron Sources (Constant)
         fluxPerRod: 0,
-        rodCount: 0,
         controlInsertion: 0,  // Target
         rodLevel: 0,        // Current
         selectedFuel: 0,
@@ -100,7 +99,10 @@ const Reactor = {
             heatsinkCount: 0,
             channelCount: 0,
             rawConnections: 0,       // Uncontrolled connections (Fuel=1, Reflector=2)
-            controlledConnections: 0 // Controlled connections (touching control rod)
+            controlledConnections: 0, // Controlled connections (touching control rod)
+            hullCount: 0,
+            controlCount: 0,
+            reflectorCount: 0,
         },
 
         fluidio: {
@@ -294,14 +296,19 @@ const Simulation = {
         Struct.rodCount = 0; Struct.sourceCount = 0; 
         Struct.heatexCount = 0; Struct.heatsinkCount = 0; 
         Struct.channelCount = 0;
-        
+        Struct.hullCount = 0; Struct.controlCount = 0; Struct.reflectorCount = 0;        
+
+ 
         // Simple linear scan (No BFS, No Raycasting)
         Reactor.iter3D((x, y, z, id) => {
-            if(id === 2) Struct.rodCount++; 
-            if(id === 7) Struct.sourceCount++;
-            if(id === 5) Struct.heatexCount++;
-            if(id === 9) Struct.heatsinkCount++;
+            if(id === 1) Struct.hullCount++; 
+            if(id === 2) Struct.rodCount++;
+            if(id === 3) Struct.controlCount++;
             if(id === 4) Struct.channelCount++;
+            if(id === 5) Struct.heatexCount++;
+            if(id === 6) Struct.reflectorCount++;
+            if(id === 7) Struct.sourceCount++;
+            if(id === 9) Struct.heatsinkCount++;
         });
 
         // We do NOT calculate connections or check leaks here.
@@ -315,6 +322,7 @@ const Simulation = {
 
         Struct.rodCount = 0; Struct.sourceCount = 0; Struct.heatexCount = 0; 
         Struct.heatsinkCount = 0; Struct.channelCount = 0;
+        Struct.controlCount = 0;        
         Struct.rawConnections = 0; Struct.controlledConnections = 0;
 
         let controllerPos = null;
@@ -368,10 +376,11 @@ const Simulation = {
             let cid = Reactor.getBlock(curr.x, curr.y, curr.z);
 
             if(cid === 2) { Struct.rodCount++; fuelRods.push(curr); }
-            if(cid === 7) Struct.sourceCount++;
-            if(cid === 5) Struct.heatexCount++;
-            if(cid === 9) Struct.heatsinkCount++;
+            if(cid === 3) Struct.controlCount++;
             if(cid === 4) Struct.channelCount++;
+            if(cid === 5) Struct.heatexCount++;
+            if(cid === 7) Struct.sourceCount++;
+            if(cid === 9) Struct.heatsinkCount++;
 
             for (let dir of directions) {
                 let nx = curr.x + dir.x;
@@ -1937,6 +1946,17 @@ updateToggleBtn(isRunning) {
         safeUpdate('tank-fill-hot', 'height', `${hotPct}%`);
         safeText('tank-text-hot', `${Math.floor(S.hotCoolantAmount / 1000)}k mB`);
         this.updateFluidIODisplay();
+        
+        //Blocks
+        safeText('stat-blocks-Coolant',S.struct.channelCount)
+        safeText('stat-blocks-Heat',S.struct.heatexCount)
+        safeText('stat-blocks-Control',S.struct.controlCount)
+        safeText('stat-blocks-Sinks',S.struct.heatsinkCount)
+        safeText('stat-blocks-Casing',S.struct.hullCount)
+        safeText('stat-blocks-Reflectors',S.struct.reflectorCount)
+        safeText('stat-blocks-Sources',S.struct.sourceCount)
+        safeText('stat-blocks-Rods',S.struct.rodCount)
+
     },
 
     showTooltip(e, text) {

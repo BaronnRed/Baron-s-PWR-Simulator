@@ -168,6 +168,21 @@
                     </div>
                 </div>
 
+                 <div class="stats-panel">
+                    <div>Control Rods Target</div>
+                    <div class="flex-gap-5 flex-align-center">
+                        <input type="range" id="inp-control-slider" class="flex-1" min="0" max="100" value="100" aria-label="Control Rod Slider">
+                        <input type="number" id="inp-control-num" min="0" max="100" value="100" aria-label="Control Rod Value">
+                    </div>
+                    <div class="mt-10">Control Rods Insertion</div>
+                    <div class="progress-bar" role="progressbar" aria-label="Rod Insertion Level">
+                        <div class="progress-fill" id="bar-rod-level"></div>
+                    </div>
+                    <div class="text-small text-right" id="txt-rod-level">100%</div>
+
+                    <div class="text-center text-small">(0% = Fully Inserted)</div>
+                </div>
+
                 <div class="stats-panel">
                     <button class="mc-btn btn-full mb-5" id="btn-toggle" onclick="Simulation.toggle()">START SIMULATION</button>
                     <div class="stat-row mt-10">
@@ -217,18 +232,19 @@
                         <span onmouseenter="UI.showTooltip(event, 'NTM:Space feature')" onmouseleave="UI.hideTooltip()">Thrust: </span><span id="txt-thrust">0</span><span>N</span>
                     </div>
 
-                    <div class="mt-10">Control Rods Target</div>
-                    <div class="flex-gap-5 flex-align-center">
-                        <input type="range" id="inp-control-slider" class="flex-1" min="0" max="100" value="100" aria-label="Control Rod Slider">
-                        <input type="number" id="inp-control-num" min="0" max="100" value="100" aria-label="Control Rod Value">
+                    <div id="blocks-panel1" class="info-grid mt-10">
+                        <span>Coolant Channels: <span id="stat-blocks-Coolant">0</span></span>
+                        <span>Heat Exchangers: <span id="stat-blocks-Heat">0</span></span>
+                        <span>Control Rods: <span id="stat-blocks-Control">0</span></span>
+                        <span>Heat Sinks: <span id="stat-blocks-Sinks">0</span></span>
                     </div>
-                    <div class="mt-10">Control Rods Insertion</div>
-                    <div class="progress-bar" role="progressbar" aria-label="Rod Insertion Level">
-                        <div class="progress-fill" id="bar-rod-level"></div>
-                    </div>
-                    <div class="text-small text-right" id="txt-rod-level">100%</div>
+                    <div id="blocks-panel2" class="info-grid mt-10">
+                        <span>Reactor Casing: <span id="stat-blocks-Casing">0</span></span>
+                        <span>Neutron Reflectors: <span id="stat-blocks-Reflectors">0</span></span>
+                        <span>Neutron Sources: <span id="stat-blocks-Sources">0</span></span>
+                        <span>Fuel Rods: <span id="stat-blocks-Rods">0</span></span>
+                    </div>                
 
-                    <div class="text-center text-small">(0% = Fully Inserted)</div>
                 </div>
 
             </aside>
