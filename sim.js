@@ -1298,6 +1298,14 @@ const UI = {
                 IO.checkDeepLink(); 
             }
         });
+
+        //Hotkey
+        window.addEventListener('keydown', function(event) {
+            if (event.key === ' ' || event.code === 'Space') {
+                event.preventDefault();
+                Simulation.toggle();
+            }
+            });
         
         // Sync Slider and Number Input
         const slider = document.getElementById('inp-control-slider');
