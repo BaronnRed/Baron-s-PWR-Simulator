@@ -502,7 +502,7 @@ tick() {
         let totalOutput = outputPerRod * amountLoaded * structureMult;
         let totalHeatOutput = totalOutput * fuel.heatPerFlux;
 
-        S.coreHeat = Math.trunc(S.coreHeat + totalHeatOutput);
+        S.coreHeat = Math.trunc(S.coreHeat + (totalHeatOutput * 1.25));
         newFlux = Math.trunc(newFlux + totalOutput);
         // --- 3. FUEL DEPLETION (Future Implementation) ---
         fuelLife = S.fuelYield/totalOutput/20;// in seconds
