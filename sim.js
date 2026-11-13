@@ -486,6 +486,10 @@ tick() {
     let newFlux = S.baseFlux;
     const fuel = S.selectedFuel;
     if(!fuel) { this.triggerError("No fuel selected"); return false; };
+    let multiplier = 1.0;
+    if (S.selectedCoolant) {
+        multiplier = S.selectedCoolant.fluxMult || 1.0;
+    }
 
     if (amountLoaded > 0) {
 
@@ -502,7 +506,11 @@ tick() {
         let totalOutput = outputPerRod * amountLoaded * structureMult;
         let totalHeatOutput = totalOutput * fuel.heatPerFlux;
 
-        S.coreHeat = Math.trunc(S.coreHeat + (totalHeatOutput * 1.25));
+         if (S.coolantAmount > 0) {
+            totalHeatOutput *= multiplier;
+        }
+
+        S.coreHeat = Math.trunc(S.coreHeat + totalHeatOutput);
         newFlux = Math.trunc(newFlux + totalOutput);
         // --- 3. FUEL DEPLETION (Future Implementation) ---
         fuelLife = S.fuelYield/totalOutput/20;// in seconds
@@ -564,9 +572,8 @@ tick() {
         S.usableHeat = S.heatGenerated * 0.991; // 0.991 comes from decay (0.999) and heat transfer (T*0.1 TU/t) 
 
         // Flux Mult
-        if(S.coolantAmount > 0) {
-        let modMult = S.selectedCoolant.fluxMult || 1.0;
-        S.flux = newFlux * modMult;
+         if(S.coolantAmount > 0) {
+            S.flux = newFlux * multiplier;
         } else { S.flux = newFlux;}
 
     }
